@@ -773,53 +773,37 @@ void LibRaw::identify()
 		//Assume that this isn't a raw unless the header can be found
 		is_raw = 0;
 
-		if (!strncasecmp(model, "RP_imx", 6)) {
-			const long offsets[] = {
-				//IMX219 offsets
-				10270208, //8MPix 3280x2464
-				2678784,  //1920x1080
-				2628608,  //1640x1232
-				1963008,  //1640x922
-				1233920,  //1280x720
-				445440,   //640x480
-				-1        //Marker for end of table
-			};
-			int offset_idx;
-			for (offset_idx = 0; offsets[offset_idx] != -1; offset_idx++) {
-				if (!fseek(ifp, -offsets[offset_idx], SEEK_END) &&
-					fread(head, 1, 32, ifp) && !strncmp(head, "BRCM", 4)) {
-
-					fseek(ifp, -32, SEEK_CUR);
-					strcpy(make, "SonyRPF");
+		fseek(ifp, 0, SEEK_END);
+		int sz = ftell(ifp);
+		int detect = 0;
+		fseek(ifp, 0, SEEK_SET);
+		for (i = 0; i < sz; i++)
+		{
+			unsigned char c;
+			if (fread(&c, 1, 1, ifp))
+			{
+				if (detect == 0 && c == 0xff)
+					detect++;
+				else if (detect == 1 && c == 0xd9)
+					detect++;
+				else if (detect == 2 && c == '@')
+					detect++;
+				else if (detect == 3 && c == 'B')
+					detect++;
+				else if (detect == 4 && c == 'R')
+					detect++;
+				else if (detect == 5 && c == 'C')
+					detect++;
+				else if (detect == 6 && c == 'M')
+				{
+					fseek(ifp, -4, SEEK_CUR);
 					parse_raspberrypi();
 					break;
 				}
+				else
+					detect = 0;
 			}
 		}
-		else if (!strncasecmp(model, "RP_OV", 5) || !strncasecmp(model, "ov5647", 6)) {
-			const long offsets[] = {
-					6404096,  //5MPix 2592x1944
-					2717696,  //1920x1080
-					1625600,  //1296x972
-					1233920,  //1296x730
-					445440,   //640x480
-					-1        //Marker for end of table
-			};
-			int offset_idx;
-			for (offset_idx = 0; offsets[offset_idx] != -1; offset_idx++) {
-				if (!fseek(ifp, -offsets[offset_idx], SEEK_END) &&
-					fread(head, 1, 32, ifp) && !strncmp(head, "BRCM", 4)) {
-					fseek(ifp, -32, SEEK_CUR);
-					strcpy(make, "OmniVision");
-					width = raw_width;
-					//Defaults
-					raw_width = 2611;
-					filters = 0x16161616;
-					parse_raspberrypi();
-					break;
-				}
-			}
-	  }
 	}// else is_raw = 0;
 #else
     fseek(ifp, 0, SEEK_END);
